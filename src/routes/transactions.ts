@@ -2,36 +2,70 @@ import { FastifyInstance } from 'fastify'
 import { knex } from '../database'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
+import { checkSessionId } from '../middlewares/check-session-id-exists'
 
 export async function transactionsRoutes(app: FastifyInstance) {
-  app.get('/', async () => {
-    /* Retorno de todas as transações */
-    const transactions = await knex('transactions').select('*')
-    return { transactions }
-  })
+  app.get(
+    '/',
+    {
+      preHandler: checkSessionId,
+    },
+    async (request) => {
+      /* Validação com cookies */
+      const { sessionId } = request.cookies
 
-  app.get('/:id', async (request) => {
-    /* Transação única */
+      /* Retorno de todas as transações */
+      const transactions = await knex('transactions')
+        .where('session_id', sessionId)
+        .select('*')
+      return { transactions }
+    },
+  )
 
-    const getRequestParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
+  app.get(
+    '/:id',
+    {
+      preHandler: checkSessionId,
+    },
+    async (request) => {
+      /* Transação única */
 
-    const { id } = getRequestParamsSchema.parse(request.params)
+      const { sessionId } = request.cookies
 
-    const transaction = await knex('transactions').where('id', id).first()
+      const getRequestParamsSchema = z.object({
+        id: z.string().uuid(),
+      })
 
-    return { transaction }
-  })
+      const { id } = getRequestParamsSchema.parse(request.params)
 
-  app.get('/summary', async () => {
-    /* Resumo do valor da conta */
+      const transaction = await knex('transactions')
+        .where({
+          session_id: sessionId,
+          id,
+        })
+        .first()
 
-    const summary = await knex('transactions')
-      .sum('amount', { as: 'amount' })
-      .first()
-    return { summary }
-  })
+      return { transaction }
+    },
+  )
+
+  app.get(
+    '/summary',
+    {
+      preHandler: checkSessionId,
+    },
+    async (request) => {
+      /* Resumo do valor da conta */
+
+      const { sessionId } = request.cookies
+
+      const summary = await knex('transactions')
+        .where('session_id', sessionId)
+        .sum('amount', { as: 'amount' })
+        .first()
+      return { summary }
+    },
+  )
 
   app.post('/', async (request, reply) => {
     /* Criando um schema para os dados que serão recebidos do body */
@@ -48,12 +82,22 @@ export async function transactionsRoutes(app: FastifyInstance) {
       request.body,
     )
 
+    /* Setup dos cookies de sessão */
+
+    let sessionId = request.cookies.sessionId
+
+    if (!sessionId) {
+      sessionId = randomUUID()
+      reply.cookie('sessionId', sessionId)
+    }
+
     /* Enviando dados para o banco de dados */
 
     await knex('transactions').insert({
       id: randomUUID(),
       title,
       amount: type === 'credit' ? amount : amount * -1,
+      session_id: sessionId,
     })
     return reply.status(201).send()
   })
