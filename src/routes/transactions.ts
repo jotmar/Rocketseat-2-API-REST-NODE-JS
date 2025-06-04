@@ -88,7 +88,9 @@ export async function transactionsRoutes(app: FastifyInstance) {
 
     if (!sessionId) {
       sessionId = randomUUID()
-      reply.cookie('sessionId', sessionId)
+      reply.cookie('sessionId', sessionId, {
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      })
     }
 
     /* Enviando dados para o banco de dados */
