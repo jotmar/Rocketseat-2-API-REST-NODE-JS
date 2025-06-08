@@ -56,4 +56,85 @@ describe('Transactions Route', () => {
       }),
     ])
   })
+
+  it('should be possible to list a single transaction.', async () => {
+    const createTransactionResponse = await request(app.server)
+      .post('/transactions')
+      .send({
+        title: 'Single Transaction',
+        amount: 3500,
+        type: 'credit',
+      })
+      .expect(201)
+
+    const cookieSchema = z.array(z.string())
+
+    const cookie = cookieSchema.parse(
+      createTransactionResponse.get('Set-Cookie'),
+    )
+
+    const listTransactionsResponse = await request(app.server)
+      .get('/transactions')
+      .set('Cookie', cookie)
+      .expect(200)
+
+    expect(listTransactionsResponse.body.transactions).toEqual([
+      expect.objectContaining({
+        title: 'Single Transaction',
+        amount: 3500,
+      }),
+    ])
+
+    const transactionId = listTransactionsResponse.body.transactions[0].id
+
+    const listSingleTransactionResponse = await request(app.server)
+      .get(`/transactions/${transactionId}`)
+      .set('Cookie', cookie)
+      .expect(200)
+
+    expect(listSingleTransactionResponse.body.transaction).toEqual(
+      expect.objectContaining({
+        title: 'Single Transaction',
+        amount: 3500,
+      }),
+    )
+  })
+
+  it('should be possible to get the user summary.', async () => {
+    let createTransactionResponse = await request(app.server)
+      .post('/transactions')
+      .send({
+        title: 'Get Summary',
+        amount: 5000,
+        type: 'credit',
+      })
+      .expect(201)
+
+    const cookieSchema = z.array(z.string())
+
+    const cookie = cookieSchema.parse(
+      createTransactionResponse.get('Set-Cookie'),
+    )
+
+    createTransactionResponse = await request(app.server)
+      .post('/transactions')
+      .set('Cookie', cookie)
+      .send({
+        title: 'Get Summary 2',
+        amount: 2000,
+        type: 'debit',
+      })
+      .expect(201)
+
+    const getSummaryResponse = await request(app.server)
+      .get('/transactions/summary')
+      .set('Cookie', cookie)
+      .expect(200)
+
+    expect(getSummaryResponse.body.summary).toEqual(
+      expect.objectContaining({
+        amount: 3000,
+      }),
+    )
+  })
 })
