@@ -9,6 +9,7 @@
     "test": "npx vitest",
     "dev": "npx tsx watch ./src/server.ts",
     "knex": "node --import tsx ./node_modules/.bin/knex",
+    "knexProd": "npx knex migrate:latest",
     "lint": "eslint src --ext .ts --fix",
     "build": "npx tsup src -d build"
   },
