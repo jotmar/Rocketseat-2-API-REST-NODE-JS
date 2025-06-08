@@ -2,6 +2,9 @@
   "name": "2-api-rest-nodejs",
   "version": "1.0.0",
   "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "npx vitest",
     "dev": "npx tsx watch ./src/server.ts",
